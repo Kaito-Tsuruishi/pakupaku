@@ -140,18 +140,24 @@ uv run python scripts/check_permissions.py
 
 なお、ステップ 2 (権限付与) を Hammerspoon 起動後にやり直した場合は、**Hammerspoon を一度 Quit → 再起動**してください (Reload Config だけでは権限変更が反映されないことがあります)。
 
-### 5. 初回テスト (モデルダウンロードあり)
+### 5. 初回テスト (モデルダウンロード待ち)
 
-任意のテキストエディタを開いて:
+> **`setup.sh` 完了直後、daemon がバックグラウンドでモデルをダウンロードします**。Hugging Face Hub から **約 5GB のモデル (Whisper + Gemma)** が落ちてくるため、回線にもよりますが 5〜15 分程度かかります。
+>
+> **必ず `paku status` の `SLM: ✓ loaded` 表示を待ってからホットキーを使ってください**。それ以前に `Ctrl + Shift + Space` を押しても、モデルがまだ準備できていないため反応しないか、極端に遅くなります。
+>
+> ```bash
+> paku status   # SLM: ✓ loaded になるまで定期的にチェック
+> ```
+>
+> Gemma は Hugging Face で利用規約への同意 (gated repository) が必要な場合があります。`paku status` の SLM がいつまで経っても loaded にならない、もしくは `~/Library/Logs/pakupaku/daemon.log` に `401 Unauthorized` が出る場合は、`huggingface-cli login` でアカウント認証 → Hugging Face のモデルページで利用規約に同意 → `paku restart` で再試行してください。
+
+SLM がロード済みになったら、任意のテキストエディタを開いて:
 
 1. `Ctrl + Shift + Space` を押す
 2. 「えーと、明日の会議に参加します」と話す
 3. `Ctrl + Shift + Space` をもう一度押す
 4. 数秒後、エディタに「明日の会議に参加します。」が貼り付く
-
-> **初回は時間がかかります**: 最初の `Ctrl + Shift + Space` を押した時点で Hugging Face Hub から **約 5GB のモデル (Whisper + Gemma) のダウンロード**が走ります。回線にもよりますが 5〜15 分程度かかります。`paku status` の `SLM: ✓ loaded` 表示まで待ってから話し始めると確実です。
->
-> Gemma は Hugging Face で利用規約への同意 (gated repository) が必要な場合があります。ダウンロードが `401 Unauthorized` で失敗したら、`huggingface-cli login` でアカウント認証 → Hugging Face のモデルページで利用規約に同意 → もう一度試してください。
 
 完了です。
 

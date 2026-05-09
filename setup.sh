@@ -186,6 +186,10 @@ step "セットアップ完了"
 
 cat <<'EOF'
 
+⚠️  daemon が起動し、バックグラウンドで初回モデルダウンロード (約 5GB)
+    が始まっています。回線にもよりますが 5〜15 分程度かかります。
+    完了は `paku status` の SLM 行で確認できます (ロード完了で `✓ loaded`)。
+
 次の手順:
 
   1. macOS 権限の取得 (5〜10 分の GUI 操作)
@@ -200,13 +204,22 @@ cat <<'EOF'
 
      uv run python scripts/check_permissions.py
 
-  3. Hammerspoon を起動 (まだなら)
+  3. Hammerspoon を起動 (まだなら) + 自動起動を設定
 
      - Spotlight で "Hammerspoon" 検索 → 起動
+     - メニューバー → Preferences → General で
+       "Launch Hammerspoon at login" にチェック
      - メニューバーアイコンから "Reload Config" をクリック
      - 「pakupaku: hotkey loaded」と表示されれば OK
 
-  4. 動作テスト
+  4. モデル DL の完了を待つ
+
+     paku status
+
+     SLM 行が `✓ loaded (...)` になったら次へ。
+     `○ not loaded` のままなら DL 中なのでもうしばらく待つ。
+
+  5. 動作テスト
 
      - 任意のテキストエディタを開く
      - ⌃⇧Space (Ctrl + Shift + Space) を押す → 録音開始音
@@ -216,17 +229,15 @@ cat <<'EOF'
 
 困ったときは:
 
-  - daemon ログを確認:
-      tail -f ~/Library/Logs/pakupaku/daemon.log
+  - 動作状態の確認:    paku status
+  - daemon ログ:       tail -f ~/Library/Logs/pakupaku/daemon.log
+  - daemon 再起動:     paku restart
+  - 完全アンインストール: bash uninstall.sh
+
   - 権限が突然外れた場合 (Sonoma 以降の不具合):
       tccutil reset Accessibility
       tccutil reset Microphone
       tccutil reset ListenEvent
     その後、もう一度 bash scripts/open_permissions.sh を実行
-  - daemon を再起動:
-      launchctl unload ~/Library/LaunchAgents/com.pakupaku.daemon.plist
-      launchctl load -w ~/Library/LaunchAgents/com.pakupaku.daemon.plist
-  - 完全アンインストール:
-      bash uninstall.sh
 
 EOF

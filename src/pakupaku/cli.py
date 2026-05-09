@@ -230,6 +230,29 @@ def cmd_slm_on(args: argparse.Namespace) -> int:
 # ===== status =====
 
 
+def _slm_cache_state() -> str:
+    """SLM モデルキャッシュの状態を返す: "missing" / "downloading" / "ready"
+
+    daemon が live で SLM 未ロードの場合、その理由を切り分けるために使う。
+    """
+    try:
+        from pakupaku.config import CACHE_DIR, DEFAULT_SLM_MODEL
+    except Exception:
+        return "missing"
+
+    cache_dir = CACHE_DIR / DEFAULT_SLM_MODEL.replace("/", "__")
+    if not cache_dir.exists():
+        return "missing"
+
+    # huggingface_hub が DL 中だと .incomplete 系ファイルや空ディレクトリが残る
+    has_incomplete = any(cache_dir.rglob("*.incomplete"))
+    has_safetensors = any(cache_dir.rglob("*.safetensors"))
+    has_config = (cache_dir / "config.json").exists()
+    if has_incomplete or not has_safetensors or not has_config:
+        return "downloading"
+    return "ready"
+
+
 def _hammerspoon_running() -> bool:
     try:
         result = subprocess.run(
@@ -309,15 +332,28 @@ def cmd_status(args: argparse.Namespace) -> int:
         elif plist_no_slm:
             print("SLM:         ○ disabled (--no-slm mode)")
         else:
-            print("SLM:         ○ not loaded")
+            cache_state = _slm_cache_state()
+            if cache_state == "missing":
+                print("SLM:         ⏳ downloading (キャッシュ作成中、初回は 5〜15 分)")
+            elif cache_state == "downloading":
+                print("SLM:         ⏳ downloading (DL 中、しばらくお待ちください)")
+            else:
+                print("SLM:         ○ not loaded (ロード処理中またはロード失敗)")
         print(f"STT:         ✓ {daemon_info.get('stt_model')}")
         if daemon_info.get("recording"):
             print("recording:   ● in progress")
     else:
         if plist_no_slm:
             print("SLM:         ○ disabled (--no-slm mode)")
+        elif pid is not None:
+            # daemon 起動直後は IPC が応答しない (warm_up 中) ことがある
+            cache_state = _slm_cache_state()
+            if cache_state in ("missing", "downloading"):
+                print("SLM:         ⏳ downloading (DL 中、daemon が応答するまで待つ)")
+            else:
+                print("SLM:         ⏳ loading (daemon の起動完了を待つ)")
         else:
-            print("SLM:         ? (daemon に問い合わせ不可)")
+            print("SLM:         ? (daemon が起動していません)")
         print("STT:         ? (daemon に問い合わせ不可)")
 
     if pid is not None:
