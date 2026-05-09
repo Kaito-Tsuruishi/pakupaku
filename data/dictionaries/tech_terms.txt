@@ -1,0 +1,308 @@
+# エンジニア向け専門用語辞書 (固有表現)
+#
+# Sudachi が分割しがちな技術用語を「分割しない 1 トークン」として扱うために登録。
+# tokenizer.py で形態素解析後に表層を連結する後処理で利用される。
+#
+# 1 行 1 用語、コメントは # で開始。表記揺れ (大文字小文字・全半角) は完全一致で判定。
+# Sudachi が分割した結果を結合するため、ここに書く語は通常表記でよい。
+
+# === ランタイム・言語 ===
+Node.js
+node.js
+Deno.js
+Bun.js
+Vue.js
+Nuxt.js
+Next.js
+Nest.js
+Nestjs
+Vue3
+Vue2
+React.js
+Angular.js
+Express.js
+Express
+TypeScript
+JavaScript
+ECMAScript
+Python3
+PyTorch
+TensorFlow
+Rails
+Django
+FastAPI
+Flask
+
+# === Web サーバー / ミドルウェア ===
+Nginx
+nginx
+Apache
+HAProxy
+Traefik
+Envoy
+Istio
+Kong
+Caddy
+Tomcat
+WebLogic
+Memcached
+RabbitMQ
+Kafka
+ActiveMQ
+ZeroMQ
+
+# === データベース ===
+PostgreSQL
+MySQL
+MariaDB
+SQLite
+SQLServer
+MongoDB
+DynamoDB
+Cassandra
+Couchbase
+Redis
+Memcached
+Elasticsearch
+ClickHouse
+BigQuery
+Snowflake
+RedShift
+Aurora
+CockroachDB
+
+# === クラウド / インフラ ===
+AWS
+EC2
+ECS
+EKS
+Fargate
+Lambda
+S3
+RDS
+ElastiCache
+CloudFront
+CloudWatch
+CloudFormation
+GCP
+GKE
+GCE
+GCS
+Azure
+AKS
+Heroku
+Vercel
+Netlify
+Cloudflare
+DigitalOcean
+Linode
+
+# === コンテナ / IaC ===
+Docker
+Kubernetes
+k8s
+Terraform
+Ansible
+Puppet
+Chef
+Pulumi
+Helm
+ArgoCD
+FluxCD
+
+# === 監視 / 観測 ===
+Datadog
+New Relic
+NewRelic
+Grafana
+Prometheus
+Sentry
+Honeybadger
+PagerDuty
+Splunk
+Loki
+Jaeger
+Tempo
+
+# === CI / CD ===
+GitHubActions
+GitHub Actions
+CircleCI
+TravisCI
+Jenkins
+GitLab CI
+GitLabCI
+ArgoCD
+Bitbucket Pipelines
+
+# === バージョン管理 / コラボ ===
+GitHub
+GitLab
+Bitbucket
+Gitea
+Linear
+JIRA
+Asana
+Trello
+Notion
+Confluence
+Slack
+Teams
+Zoom
+
+# === IDE / エディタ ===
+VSCode
+VS Code
+Cursor
+IntelliJ
+PyCharm
+WebStorm
+Eclipse
+Vim
+Neovim
+Emacs
+
+# === フォーマッタ / Linter ===
+Prettier
+Biome
+ESLint
+TSLint
+RuboCop
+Black
+Flake8
+mypy
+Pyright
+Ruff
+
+# === テスト ===
+Jest
+Vitest
+Mocha
+Jasmine
+Cypress
+Playwright
+Selenium
+Puppeteer
+Pytest
+Pyspec
+RSpec
+Minitest
+Karma
+
+# === パッケージ管理 ===
+npm
+pnpm
+yarn
+bun
+pip
+poetry
+uv
+cargo
+gem
+bundle
+go mod
+maven
+gradle
+
+# === API / プロトコル ===
+GraphQL
+gRPC
+REST
+RESTful
+tRPC
+WebSocket
+WebSockets
+SSE
+HTTP/2
+HTTP/3
+HTTPS
+OAuth
+OAuth2
+OpenID Connect
+SAML
+JWT
+mTLS
+
+# === キャッシュ / セッション ===
+CDN
+LocalStorage
+SessionStorage
+IndexedDB
+
+# === セキュリティ ===
+CORS
+CSRF
+XSS
+SQLi
+JWT
+TLS
+SSL
+2FA
+MFA
+
+# === HTTP ステータス・略語 ===
+HTTP
+URL
+URI
+JSON
+YAML
+XML
+HTML
+CSS
+SQL
+NoSQL
+SaaS
+PaaS
+IaaS
+SLA
+SLI
+SLO
+RPO
+RTO
+RTT
+
+# === Linux / コマンド ===
+SSH
+sudo
+chmod
+chown
+grep
+sed
+awk
+
+# === メッセージング ===
+SNS
+SQS
+PubSub
+EventBridge
+
+# === 開発手法 ===
+TDD
+BDD
+DDD
+CQRS
+MVC
+MVVM
+SOA
+SPA
+SSG
+SSR
+ISR
+PWA
+
+# === ファイル拡張子 / 設定 ===
+.gitignore
+.env
+.eslintrc
+.prettierrc
+.editorconfig
+.dockerignore
+.npmrc
+package.json
+tsconfig.json
+docker-compose.yml
+docker-compose
+README.md
+CHANGELOG.md
+Dockerfile
+Makefile

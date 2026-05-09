@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.pakupaku.daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- install_launchd.sh が実行時に PROJECT_DIR を埋める -->
+        <string>__PAKUPAKU_VENV_PYTHON__</string>
+        <string>-m</string>
+        <string>pakupaku.cli</string>
+        <string>daemon</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__PAKUPAKU_PROJECT_DIR__</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>__PAKUPAKU_LOG_DIR__/daemon.stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__PAKUPAKU_LOG_DIR__/daemon.stderr.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+    </dict>
+</dict>
+</plist>

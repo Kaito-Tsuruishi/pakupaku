@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# uv
+.uv/
+
+# モデルキャッシュ (HF Hub から自動 DL)
+models/
+*.gguf
+*.safetensors
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# ログ
+*.log
+
+# 開発用ディレクトリ (設計書、評価データ、開発スクリプト等、配布対象外)
+_dev/
