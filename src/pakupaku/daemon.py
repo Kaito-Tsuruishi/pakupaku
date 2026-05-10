@@ -174,7 +174,7 @@ class PakupakuDaemon:
         # 貼り付け時のフォーカス先アプリを録音停止時点で固定する
         # (STT 中にユーザーがアプリを切り替えると別アプリへ誤貼り付けする事故を防ぐ)
         expected_app = get_frontmost_app()
-        logger.debug(f"Frontmost app at stop: {expected_app}")
+        logger.info(f"Frontmost app at stop: {expected_app}")
 
         # メインスレッドで処理させるためタスクキューに積む
         # (MLX はロードしたスレッドからしか推論できないため別スレッドでは動かない)
@@ -210,6 +210,11 @@ class PakupakuDaemon:
                 elif status == "frontmost_app_changed_text_in_clipboard":
                     notify(
                         "貼り付け先のアプリが変わりました。⌘V で貼り付けてください",
+                        title="pakupaku",
+                    )
+                elif status == "frontmost_app_unknown_text_in_clipboard":
+                    notify(
+                        "フロントアプリを特定できませんでした。⌘V で貼り付けてください",
                         title="pakupaku",
                     )
                 else:

@@ -6,8 +6,11 @@ pyobjc 経由で NSPasteboard を直接扱う。
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import time
+
+logger = logging.getLogger("pakupaku.clipboard")
 
 # UTI 識別子 (Big Sur 以降の標準)
 PASTEBOARD_TYPE_STRING = "public.utf8-plain-text"
@@ -102,7 +105,15 @@ def paste_to_frontmost(
 
     if expected_app is not None:
         current_app = get_frontmost_app()
-        if current_app is not None and current_app != expected_app:
+        logger.info(
+            f"Paste app check: expected={expected_app}, current={current_app}"
+        )
+        if current_app is None:
+            # フロントアプリのバンドル ID を取得できない → 安全側に倒して貼り付けない
+            # (Fail Closed: 不明な状態で貼り付けて事故るより、クリップボードに残すほうが安全)
+            set_clipboard(text)
+            return False, "frontmost_app_unknown_text_in_clipboard"
+        if current_app != expected_app:
             # フロントアプリが録音停止時から変わっている → 誤貼り付け回避
             set_clipboard(text)
             return False, "frontmost_app_changed_text_in_clipboard"
