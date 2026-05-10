@@ -29,7 +29,7 @@ from pakupaku.config import (
     LOG_DIR,
     SOCKET_PATH,
 )
-from pakupaku.feedback import notify, play_start_sound, play_stop_sound
+from pakupaku.feedback import notify, play_start_sound, play_stop_sound, show_status
 from pakupaku.ipc import UnixSocketServer
 from pakupaku.pipeline import process
 from pakupaku.recorder import Recorder
@@ -141,10 +141,11 @@ class PakupakuDaemon:
         try:
             self.recorder.start()
             play_start_sound()
-            notify("録音中...", title="pakupaku")
+            show_status("録音中...")
             logger.info("Recording started")
         except Exception as e:
             logger.error(f"Failed to start recording: {e}")
+            show_status(None)
             notify(f"録音開始失敗: {e}", title="pakupaku")
 
     def _stop_recording(self) -> None:
@@ -157,14 +158,17 @@ class PakupakuDaemon:
         try:
             audio = self.recorder.stop()
             play_stop_sound()
+            show_status("処理中...")
             logger.info(f"Recording stopped: {audio.duration_seconds:.2f}s")
         except Exception as e:
             logger.error(f"Failed to stop recording: {e}")
+            show_status(None)
             notify(f"録音停止失敗: {e}", title="pakupaku")
             return
 
         if audio.is_too_short:
             logger.info("Recording too short, ignoring")
+            show_status(None)
             return
 
         # 貼り付け時のフォーカス先アプリを録音停止時点で固定する
@@ -214,6 +218,7 @@ class PakupakuDaemon:
             logger.exception(f"Processing failed: {e}")
             notify(f"処理失敗: {e}", title="pakupaku")
         finally:
+            show_status(None)
             self._processing = False
 
     def _on_max_duration(self) -> None:
