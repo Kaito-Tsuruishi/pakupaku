@@ -10,6 +10,18 @@ Mac のどこでも **`Ctrl + Shift + Space`** で日本語を音声入力でき
 - ディスク: 約 5GB (Whisper 1.6GB + Gemma 3.4GB のモデルキャッシュ)
 - **メモリ: 約 5〜6GB を常時占有** (Whisper + SLM をロードしっぱなしにする設計。詳細は [常時メモリを消費します](#常時メモリを消費します) を参照)
 
+## 技術スタック
+
+| レイヤー | 技術 |
+|---|---|
+| ランタイム | Python 3.12 (uv 管理) |
+| 音声認識 (STT) | mlx-whisper (Apple Silicon / MLX) |
+| 言語モデル (SLM) | mlx-lm + Gemma (言い直し・フィラー救済) |
+| 形態素・係り受け解析 | SudachiPy + GiNZA |
+| 録音・VAD | sounddevice + silero-vad |
+| モデル管理 | huggingface-hub / transformers |
+| macOS 統合 | PyObjC + Hammerspoon (ホットキー) + launchd (自動起動) |
+
 ## 使い方 (UX)
 
 1. 入力したい場面で **`Ctrl + Shift + Space`** を押す
@@ -51,7 +63,7 @@ pakupaku は使用していない時間も**常に約 5〜6GB のメモリを占
 - メモリに余裕のある Mac (16GB 以上推奨) で使うことを想定しています
 - 一時的に使わない・他の作業に全メモリを割きたい場合は `paku stop` で daemon を停止できます (再開は `paku start`)
 - **SLM だけ切ってメモリを節約 (約 3.4GB 削減)**: `paku slm-off` (戻すには `paku slm-on`)
-  - SLM オフ時は古典 NLP のみで動作。フィラー除去・基本的な句読点整形は機能しますが、複雑な言い直し (「14時から、いや15時から」など) は救済されません
+  - SLM オフ時は形態素・係り受け解析のみで動作。フィラー除去・基本的な句読点整形は機能しますが、複雑な言い直し (「14時から、いや15時から」など) は救済されません
   - 設定は plist に永続化されるので Mac 再起動後も維持されます
 - 完全に使わなくなった場合は `bash uninstall.sh` でアンインストールしてください
 
@@ -219,7 +231,7 @@ bash uninstall.sh
 | `paku start` | daemon を起動 (停止していた場合) |
 | `paku stop` | daemon を停止 (メモリを解放したいとき) |
 | `paku restart` | daemon を再起動 |
-| `paku slm-off` | SLM を無効化してメモリを約 3.4GB 節約 (古典 NLP のみで動作) |
+| `paku slm-off` | SLM を無効化してメモリを約 3.4GB 節約 (形態素・係り受け解析のみで動作) |
 | `paku slm-on` | SLM を有効化 (通常モードに戻す) |
 | `paku text -i "..."` | テキスト整形のみ実行 (デバッグ用) |
 
@@ -230,7 +242,7 @@ bash uninstall.sh
 音声入力なしで、テキスト整形のロジックだけ試せます:
 
 ```bash
-# 古典 NLP のみ (高速、約 24ms)
+# 形態素・係り受け解析のみ (高速、約 24ms)
 paku text -i "えーと、明日の会議に参加します" -v
 
 # SLM 込み (古典で取れない言い直しを救済、約 200ms)
