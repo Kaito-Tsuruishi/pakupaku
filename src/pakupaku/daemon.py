@@ -304,17 +304,20 @@ class PakupakuDaemon:
             bg_stt.add_text(chunk.index, "")
 
     def _consume_bg_stt(self, bg_stt) -> str:
-        """全 BG STT チャンクの完了を待ってテキストを連結して返す"""
+        """全 BG STT チャンクの完了を待ってテキストを連結して返す
+
+        この関数はメインループから取り出された recording_done タスクの処理中に
+        呼ばれる。recording_done の task_done() はメインループ側が呼ぶため、
+        ここで取り出す bg_chunk タスクの task_done() のみここで呼ぶ。
+        """
         # emit_remaining_as_final は呼び出し元 (_stop_recording_locked) で済んでいる前提
-        # メインスレッドが今キューを消費しているので、未処理 bg_chunk タスクは
-        # まだキューに残っている可能性がある。それらを先に消化する。
         while not bg_stt._done_event.is_set():
             try:
                 task = self._task_queue.get(timeout=0.5)
             except queue.Empty:
                 continue
+            kind = task[0]
             try:
-                kind = task[0]
                 if kind == "bg_chunk":
                     _, chunk, owner = task
                     if owner is bg_stt:
@@ -329,7 +332,9 @@ class PakupakuDaemon:
                         f"Unexpected task during _consume_bg_stt: {kind}"
                     )
             finally:
-                self._task_queue.task_done()
+                # bg_chunk のみここで task_done。recording_done はメインループ側が呼ぶ。
+                if kind != "recording_done":
+                    self._task_queue.task_done()
         bg_stt.stop()
         return bg_stt.finalize_text()
 
@@ -343,6 +348,11 @@ def main(no_slm: bool = False) -> None:
     """エントリポイント"""
     _setup_logging()
     logger.info(f"Starting pakupaku daemon (no_slm={no_slm})")
+
+    # 前回 daemon がクラッシュした場合、Hammerspoon の hs.alert に「処理中...」が
+    # 出っぱなしになっている可能性があるため起動時に必ずクリアする。
+    # (Hammerspoon が起動していなければ show_status は静かに失敗するので無害)
+    show_status(None)
 
     daemon = PakupakuDaemon(no_slm=no_slm)
     daemon.warm_up()

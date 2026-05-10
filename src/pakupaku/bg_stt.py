@@ -33,6 +33,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from pakupaku.config import (
+    BG_STT_MAX_CHUNK_SEC,
     BG_STT_VAD_POLL_INTERVAL,
     SAMPLE_RATE,
     STT_PROMPT_CARRYOVER_CHARS,
@@ -132,7 +133,14 @@ class BackgroundSTT:
         logger.info("BackgroundSTT stopped")
 
     def _vad_loop(self) -> None:
-        """録音中、定期的に VAD でチャンク検出してキューに積む"""
+        """録音中、定期的に VAD でチャンク検出してキューに積む
+
+        VAD で発話区間が確定しない場合 (= ずっと喋り続けて無音が来ない場合)、
+        BG_STT_MAX_CHUNK_SEC 経過した時点で強制的にチャンクを切る。
+        Whisper は文の途中で切れても prompt 引数で前チャンクの末尾文脈を
+        引き継ぐので、大きな精度劣化はない想定。
+        """
+        max_chunk_samples = int(BG_STT_MAX_CHUNK_SEC * self._samplerate)
         while not self._stop_event.is_set():
             try:
                 samples = self._recorder.snapshot()
@@ -145,6 +153,24 @@ class BackgroundSTT:
                     for start, end in completed:
                         self._enqueue_chunk(samples, start, end, is_final=False)
                         self._last_emit_offset = end
+
+                    # VAD で確定しなかった場合の強制カット判定。
+                    # 前回 emit からの未処理サンプルが MAX を超えていたら時間カット。
+                    if BG_STT_MAX_CHUNK_SEC > 0:
+                        unprocessed = samples.size - self._last_emit_offset
+                        if unprocessed >= max_chunk_samples:
+                            cut_end = self._last_emit_offset + max_chunk_samples
+                            logger.info(
+                                f"forced cut at {cut_end / self._samplerate:.1f}s "
+                                f"(no VAD boundary within {BG_STT_MAX_CHUNK_SEC}s)"
+                            )
+                            self._enqueue_chunk(
+                                samples,
+                                self._last_emit_offset,
+                                cut_end,
+                                is_final=False,
+                            )
+                            self._last_emit_offset = cut_end
             except Exception:
                 logger.exception("VAD loop error")
             self._stop_event.wait(BG_STT_VAD_POLL_INTERVAL)
@@ -177,6 +203,10 @@ class BackgroundSTT:
     def emit_remaining_as_final(self, samples: np.ndarray | None = None) -> None:
         """録音停止時、残りの未 emit な音声を最終チャンク群としてキューに積む
 
+        VAD 監視スレッドと VAD モデル (torch) のアクセスが競合して
+        ネイティブクラッシュを起こすことがあるため、まず VAD 監視スレッドを
+        確実に停止してから VAD を呼び直す。
+
         Args:
             samples: 録音停止後の全サンプル。None の場合は recorder.snapshot() を使う
                     (Recorder.stop() が呼ばれる前提なら最終 buffer が入っている)
@@ -184,6 +214,13 @@ class BackgroundSTT:
         if self._final_emitted:
             logger.warning("emit_remaining_as_final called twice")
             return
+
+        # VAD 監視スレッドを停止して、torch モデルへの同時アクセスを避ける
+        self._stop_event.set()
+        if self._vad_thread is not None:
+            self._vad_thread.join(timeout=3.0)
+            self._vad_thread = None
+
         if samples is None:
             samples = self._recorder.snapshot()
 
