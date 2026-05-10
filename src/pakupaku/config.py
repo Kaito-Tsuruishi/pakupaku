@@ -45,11 +45,19 @@ DTYPE = "float32"
 MIN_RECORDING_SECONDS = 0.3  # 誤タップ判定
 MAX_RECORDING_SECONDS = 30 * 60  # 30 分上限
 
-# ===== VAD (Phase 5) =====
+# ===== VAD (Phase 6: バックグラウンド STT) =====
 
 VAD_SPEECH_THRESHOLD = 0.5
 VAD_MIN_SPEECH_MS = 250
-VAD_MIN_SILENCE_MS = 800  # 会話の自然な間で誤分割しない閾値
+# 言い直しの「、いや」程度の言いよどみ (~0.5s) では区切らないよう 1.5s に設定。
+# 区切ってしまうと Whisper のチャンク単独認識で文脈ロスが起きる。
+VAD_MIN_SILENCE_MS = 1500
+
+# Whisper のチャンク間文脈引き継ぎ (prompt 引数に渡す直前チャンク末尾の文字数)
+STT_PROMPT_CARRYOVER_CHARS = 50
+
+# バックグラウンド STT の VAD 監視間隔 (秒)
+BG_STT_VAD_POLL_INTERVAL = 1.0
 
 # ===== ルーター発火条件 (15〜25% SLM 目標版) =====
 

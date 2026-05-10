@@ -57,6 +57,12 @@ def _setup_logging() -> None:
     )
 
 
+def _bg_stt_enabled() -> bool:
+    """環境変数 PAKUPAKU_BG_STT が真値ならバックグラウンド STT 有効"""
+    val = os.environ.get("PAKUPAKU_BG_STT", "").strip().lower()
+    return val in ("1", "true", "yes", "on")
+
+
 class PakupakuDaemon:
     """pakupaku の常駐デーモン本体"""
 
@@ -70,6 +76,11 @@ class PakupakuDaemon:
         # メインスレッドで処理するためのタスクキュー
         # IPC スレッドからは「録音停止後の音声」を渡し、メインスレッドが消費する
         self._task_queue: queue.Queue = queue.Queue()
+        # バックグラウンド STT (Phase 6、案 C) のオプトイン
+        self._bg_stt_enabled = _bg_stt_enabled()
+        self._bg_stt: Any | None = None  # BackgroundSTT インスタンス
+        if self._bg_stt_enabled:
+            logger.info("Background STT enabled (PAKUPAKU_BG_STT)")
 
     def warm_up(self) -> None:
         """起動時のモデルロード"""
@@ -91,6 +102,16 @@ class PakupakuDaemon:
             logger.info("STT model cached")
         except Exception as e:
             logger.warning(f"STT warm-up failed: {e}")
+
+        if self._bg_stt_enabled:
+            try:
+                from pakupaku.vad import warm_up as vad_warm_up
+
+                vad_warm_up()
+                logger.info("VAD model loaded")
+            except Exception as e:
+                logger.warning(f"VAD warm-up failed: {e}. Disabling background STT.")
+                self._bg_stt_enabled = False
 
     def handle_command(self, command: str) -> str | None:
         """IPC から受け取ったコマンドを処理
@@ -142,6 +163,15 @@ class PakupakuDaemon:
             self.recorder.start()
             play_start_sound()
             show_status("録音中...")
+            if self._bg_stt_enabled:
+                from pakupaku.bg_stt import BackgroundSTT
+
+                # 外部キュー (= self._task_queue) を共有することで、
+                # メインスレッドがチャンクタスクを直接ディスパッチできる。
+                self._bg_stt = BackgroundSTT(
+                    self.recorder, external_queue=self._task_queue
+                )
+                self._bg_stt.start()
             logger.info("Recording started")
         except Exception as e:
             logger.error(f"Failed to start recording: {e}")
@@ -163,12 +193,18 @@ class PakupakuDaemon:
         except Exception as e:
             logger.error(f"Failed to stop recording: {e}")
             show_status(None)
+            if self._bg_stt is not None:
+                self._bg_stt.stop()
+                self._bg_stt = None
             notify(f"録音停止失敗: {e}", title="pakupaku")
             return
 
         if audio.is_too_short:
             logger.info("Recording too short, ignoring")
             show_status(None)
+            if self._bg_stt is not None:
+                self._bg_stt.stop()
+                self._bg_stt = None
             return
 
         # 貼り付け時のフォーカス先アプリを録音停止時点で固定する
@@ -176,17 +212,36 @@ class PakupakuDaemon:
         expected_app = get_frontmost_app()
         logger.info(f"Frontmost app at stop: {expected_app}")
 
+        # バックグラウンド STT が動いていれば、残りの音声を最終チャンクとして emit する
+        bg_stt = self._bg_stt
+        self._bg_stt = None
+        if bg_stt is not None:
+            try:
+                bg_stt.emit_remaining_as_final(samples=audio.samples)
+            except Exception:
+                logger.exception("Failed to emit final chunk; falling back to bulk STT")
+                bg_stt.stop()
+                bg_stt = None
+
         # メインスレッドで処理させるためタスクキューに積む
         # (MLX はロードしたスレッドからしか推論できないため別スレッドでは動かない)
         self._processing = True
-        self._task_queue.put((audio, expected_app))
+        self._task_queue.put(("recording_done", audio, expected_app, bg_stt))
 
-    def _process_audio(self, audio, expected_app: str | None = None) -> None:
+    def _process_audio(
+        self,
+        audio,
+        expected_app: str | None = None,
+        bg_stt: Any | None = None,
+    ) -> None:
         try:
-            from pakupaku.stt import transcribe
-
             t0 = time.perf_counter()
-            stt_text = transcribe(audio)
+            if bg_stt is not None:
+                stt_text = self._consume_bg_stt(bg_stt)
+            else:
+                from pakupaku.stt import transcribe
+
+                stt_text = transcribe(audio)
             t1 = time.perf_counter()
             logger.info(f"STT: {(t1 - t0) * 1000:.0f}ms, text='{stt_text[:80]}'")
 
@@ -226,6 +281,58 @@ class PakupakuDaemon:
             show_status(None)
             self._processing = False
 
+    def _process_bg_chunk(self, chunk, bg_stt) -> None:
+        """録音中に VAD で確定したチャンクを STT して BackgroundSTT に格納する
+
+        メインスレッドからのみ呼ばれる (MLX のスレッド制約)。
+        """
+        try:
+            from pakupaku.stt import transcribe_samples
+
+            t0 = time.perf_counter()
+            carryover = bg_stt.carryover_for_next(chunk.index)
+            text = transcribe_samples(chunk.samples, carryover_text=carryover)
+            elapsed = (time.perf_counter() - t0) * 1000
+            logger.info(
+                f"BG STT chunk #{chunk.index}: {elapsed:.0f}ms, "
+                f"final={chunk.is_final}, text='{text[:80]}'"
+            )
+            bg_stt.add_text(chunk.index, text)
+        except Exception:
+            logger.exception(f"BG STT chunk #{chunk.index} failed")
+            # 失敗したチャンクは空文字として扱う (後続処理を止めないため)
+            bg_stt.add_text(chunk.index, "")
+
+    def _consume_bg_stt(self, bg_stt) -> str:
+        """全 BG STT チャンクの完了を待ってテキストを連結して返す"""
+        # emit_remaining_as_final は呼び出し元 (_stop_recording_locked) で済んでいる前提
+        # メインスレッドが今キューを消費しているので、未処理 bg_chunk タスクは
+        # まだキューに残っている可能性がある。それらを先に消化する。
+        while not bg_stt._done_event.is_set():
+            try:
+                task = self._task_queue.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                kind = task[0]
+                if kind == "bg_chunk":
+                    _, chunk, owner = task
+                    if owner is bg_stt:
+                        self._process_bg_chunk(chunk, bg_stt)
+                    else:
+                        # 別の (古い) bg_stt のチャンクは破棄
+                        logger.info(
+                            f"Discarding stale bg_chunk index={chunk.index}"
+                        )
+                else:
+                    logger.warning(
+                        f"Unexpected task during _consume_bg_stt: {kind}"
+                    )
+            finally:
+                self._task_queue.task_done()
+        bg_stt.stop()
+        return bg_stt.finalize_text()
+
     def _on_max_duration(self) -> None:
         logger.warning("Max recording duration reached, auto-stopping")
         notify("録音時間が上限 (30 分) に達しました", title="pakupaku")
@@ -256,15 +363,29 @@ def main(no_slm: bool = False) -> None:
 
     try:
         # メインスレッドで処理キューを消費
-        # IPC スレッドが録音停止時に (audio, expected_app) をキューに積む
+        # キューに積まれるタスクは:
+        #   ("recording_done", audio, expected_app, bg_stt|None)
+        #     録音停止時に IPC スレッドが投入。整形・貼り付けを実施する。
+        #   ("bg_chunk", _Chunk, BackgroundSTT)
+        #     PAKUPAKU_BG_STT 有効時、録音中に VAD スレッドが投入。
+        #     チャンクを STT して BackgroundSTT のテキストバッファに格納する。
         while not stop_event.is_set():
             try:
                 task = daemon._task_queue.get(timeout=1.0)
             except queue.Empty:
                 continue
             try:
-                audio, expected_app = task
-                daemon._process_audio(audio, expected_app=expected_app)
+                kind = task[0]
+                if kind == "recording_done":
+                    _, audio, expected_app, bg_stt = task
+                    daemon._process_audio(
+                        audio, expected_app=expected_app, bg_stt=bg_stt
+                    )
+                elif kind == "bg_chunk":
+                    _, chunk, bg_stt = task
+                    daemon._process_bg_chunk(chunk, bg_stt)
+                else:
+                    logger.warning(f"Unknown task kind: {kind}")
             except Exception as e:
                 logger.exception(f"Process failed in main loop: {e}")
             finally:

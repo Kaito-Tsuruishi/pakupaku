@@ -105,6 +105,20 @@ class Recorder:
         """サブクラス・呼び出し元でオーバーライドして通知等を行う"""
         pass
 
+    def snapshot(self) -> np.ndarray:
+        """録音中の現在までのサンプルを連結して返す (録音は継続)
+
+        バックグラウンド STT (Phase 6) で VAD 検出のために録音中の音声を覗くために使う。
+        コピー操作のため呼び出しコストはあるが、録音継続には影響しない。
+        """
+        with self._lock:
+            if not self._buffer:
+                return np.zeros(0, dtype=np.float32)
+            samples = np.concatenate(self._buffer, axis=0)
+        if samples.ndim > 1 and samples.shape[1] == 1:
+            samples = samples.flatten()
+        return samples
+
     def stop(self) -> RecordedAudio:
         """録音停止して RecordedAudio を返す"""
         if not self._is_recording:
