@@ -24,7 +24,7 @@ DEFAULT_STT_INITIAL_PROMPT = (
     "VSCode, Cursor, Vim, Hammerspoon, "
     "Jest, Vitest, Cypress, Playwright, Pytest, "
     "ESLint, Biome, Prettier, "
-    "PR, MR, CI, CD, Pull Request, Issue, Merge Request."
+    "PR, MR, CI, CD, QA, UAT, SIT, E2E, Pull Request, Issue, Merge Request."
 )
 
 # モデルキャッシュ先
