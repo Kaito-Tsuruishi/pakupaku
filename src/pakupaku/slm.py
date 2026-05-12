@@ -70,7 +70,7 @@ def slm_repair(sentence: Sentence, model_pair) -> Sentence:
     else:
         output_text = _parse_slm_output(raw_text)
         # 文末に句点を補う
-        if output_text and output_text[-1] not in {"。", "、", "!", "?", "！", "?"}:
+        if output_text and output_text[-1] not in {"。", "、", "!", "?", "！", "？"}:
             output_text += "。"
 
     # 古典結果を基準に安全装置を回す:
@@ -112,7 +112,7 @@ def _apply_deletions(input_text: str, raw_response: str) -> str:
     while result and result[0] in "、 ":
         result = result[1:]
     # 文末に句点
-    if result and result[-1] not in {"。", "、", "!", "?", "！", "?"}:
+    if result and result[-1] not in {"。", "、", "!", "?", "！", "？"}:
         result += "。"
     return result
 
