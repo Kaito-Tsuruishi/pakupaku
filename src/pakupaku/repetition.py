@@ -302,7 +302,7 @@ def _find_common_modifier_prefix(
         tok = sentence.tokens[j]
         if tok.is_filler or tok.is_repetition:
             continue
-        if tok.surface in {"、", "。", "!", "?", "！", "?"}:
+        if tok.surface in {"、", "。", "!", "?", "！", "？"}:
             continue
         after_surfaces.append(tok.surface)
 
