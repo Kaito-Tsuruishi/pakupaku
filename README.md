@@ -234,6 +234,36 @@ paku restart
 bash uninstall.sh
 ```
 
+`uninstall.sh` は **pakupaku 固有のシステム連携と作業ファイルだけを削除**し、他プロジェクトと共有しうるツール (Homebrew パッケージ・uv 等) やプロジェクトディレクトリ自体は残します。各項目の扱いは以下のとおりです。
+
+**自動で削除されるもの (確認なし)**
+
+| 対象 | パス |
+|---|---|
+| launchd 登録 | `~/Library/LaunchAgents/com.pakupaku.daemon.plist` |
+| Hammerspoon 設定 | `~/.hammerspoon/pakupaku.lua` |
+| Hammerspoon init.lua の require 行 | `~/.hammerspoon/init.lua` 内の `require("pakupaku")` |
+| Unix ソケット | `~/.pakupaku/pakupaku.sock` (+ 空なら `~/.pakupaku/` も) |
+| `paku` コマンドの alias | `~/.zshrc` のマーカーブロック (`# >>> pakupaku >>>` 〜 `# <<< pakupaku <<<`) |
+
+**y/N で確認のうえ削除されるもの**
+
+| 対象 | パス | サイズ目安 |
+|---|---|---|
+| モデルキャッシュ | `~/.cache/pakupaku/` | 約 5GB |
+| ログ | `~/Library/Logs/pakupaku/` | 数 MB 〜 |
+
+**`uninstall.sh` では削除されません (必要なら手動で)**
+
+| 対象 | 削除コマンド | 注意 |
+|---|---|---|
+| プロジェクトディレクトリ本体 (`.venv` 含む) | `rm -rf <clone した場所>` | スクリプトが入っているので外から実行 |
+| Hammerspoon.app | `brew uninstall --cask hammerspoon` | 他用途で使っていれば残す |
+| ffmpeg | `brew uninstall ffmpeg` | 他用途で使っていれば残す |
+| uv 本体 | `rm ~/.local/bin/uv` | 他の Python プロジェクトで使っていれば残す |
+| Hugging Face 共有キャッシュ | `~/.cache/huggingface/` 内の Whisper / Gemma | 他の HF モデルと共用のため一括削除は非推奨 |
+| macOS 権限 (アクセシビリティ・入力監視・マイク) | System Settings から手動 | `tccutil reset` は全アプリ対象になる |
+
 ## CLI コマンド一覧
 
 日常運用は `Ctrl + Shift + Space` (Hammerspoon) で完結します。CLI はセットアップ・保守・デバッグ用です。
