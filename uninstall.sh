@@ -66,6 +66,21 @@ if [[ -S "${HOME}/.pakupaku/pakupaku.sock" ]]; then
     ok "Unix ソケットを削除"
 fi
 
+# ~/.zshrc の alias ブロック
+ZSHRC="${HOME}/.zshrc"
+MARK_BEGIN="# >>> pakupaku >>>"
+MARK_END="# <<< pakupaku <<<"
+if [[ -f "${ZSHRC}" ]] && grep -qF "${MARK_BEGIN}" "${ZSHRC}" 2>/dev/null; then
+    TMP_ZSHRC="$(mktemp)"
+    awk -v b="${MARK_BEGIN}" -v e="${MARK_END}" '
+        $0 == b { in_block = 1; next }
+        in_block { if ($0 == e) in_block = 0; next }
+        { print }
+    ' "${ZSHRC}" > "${TMP_ZSHRC}"
+    mv "${TMP_ZSHRC}" "${ZSHRC}"
+    ok "~/.zshrc から alias ブロックを削除"
+fi
+
 # ===== オプション削除 =====
 
 step "オプション削除"

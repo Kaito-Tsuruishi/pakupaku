@@ -108,8 +108,17 @@ bash setup.sh
 - GiNZA 互換パッチ適用
 - Hammerspoon 設定の配置 (`~/.hammerspoon/pakupaku.lua`)
 - launchd への daemon 登録 (Mac 起動時に自動起動)
+- `~/.zshrc` に `paku` コマンドの alias を追加
 
 完了すると、ターミナルに以降のステップ (権限取得・動作確認・Hammerspoon 起動・テスト) の案内が表示されます。以下の手順と内容は同じです。
+
+`paku` コマンドを今すぐ使いたい場合は、新しいターミナルを開くか以下を実行してください:
+
+```bash
+source ~/.zshrc
+```
+
+> **フォルダを移動した場合**: `paku` コマンドや daemon 内部のパスが古い場所を指したままになります。移動先で `bash setup.sh` を再実行すると、launchd 登録と `~/.zshrc` の alias が新しいパスに更新されます。
 
 > **重要**: `setup.sh` は自動で全部はやってくれません。**手順 2 (macOS 権限の付与) と手順 4 (Hammerspoon 起動 + 「Launch Hammerspoon at login」のチェック) は必ず手動で行ってください**。これを行わないと、Mac 再起動後にホットキーが効かなくなります。
 
@@ -208,6 +217,10 @@ bash scripts/open_permissions.sh
 ```
 
 `tccutil reset ListenEvent` が失敗する macOS バージョンでは、System Settings → Privacy & Security → Input Monitoring から Hammerspoon を一旦削除して、再度追加してください。
+
+### `paku: command not found` または古いパスを指している
+
+`~/.zshrc` の alias が現在のリポジトリ位置と合っていない可能性があります。リポジトリのフォルダで `bash setup.sh` を再実行すると `~/.zshrc` の alias が現在のパスに更新されます。実行後は新しいターミナルを開くか `source ~/.zshrc` を実行してください。
 
 ### daemon を再起動
 

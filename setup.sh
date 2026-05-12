@@ -179,6 +179,68 @@ bash "${PROJECT_DIR}/scripts/install_launchd.sh" >/dev/null
 ok "pakupaku daemon を launchd に登録"
 
 # ==================
+# shell alias (paku コマンド)
+# ==================
+
+step "shell alias (paku) の設定"
+
+ZSHRC="${HOME}/.zshrc"
+PAKU_BIN="${PROJECT_DIR}/.venv/bin/paku"
+MARK_BEGIN="# >>> pakupaku >>>"
+MARK_END="# <<< pakupaku <<<"
+
+# .zshrc が無ければ作成
+if [[ ! -f "${ZSHRC}" ]]; then
+    touch "${ZSHRC}"
+    ok "~/.zshrc を作成"
+fi
+
+# マーカー外の旧来手書き alias 行を削除 (重複・順序負けを防ぐ)
+if grep -E '^[[:space:]]*alias[[:space:]]+paku=' "${ZSHRC}" >/dev/null 2>&1; then
+    # マーカーブロック内の行はいったん保護してから削除し、最後に書き戻す
+    TMP_ZSHRC="$(mktemp)"
+    awk -v b="${MARK_BEGIN}" -v e="${MARK_END}" '
+        $0 == b { in_block = 1 }
+        in_block { print; if ($0 == e) in_block = 0; next }
+        /^[[:space:]]*alias[[:space:]]+paku=/ { next }
+        { print }
+    ' "${ZSHRC}" > "${TMP_ZSHRC}"
+    mv "${TMP_ZSHRC}" "${ZSHRC}"
+fi
+
+# マーカーブロックがあれば中身を差し替え、無ければ末尾に追記
+if grep -qF "${MARK_BEGIN}" "${ZSHRC}" 2>/dev/null; then
+    TMP_ZSHRC="$(mktemp)"
+    awk -v b="${MARK_BEGIN}" -v e="${MARK_END}" -v bin="${PAKU_BIN}" '
+        $0 == b {
+            print b
+            print "alias paku=\"" bin "\""
+            print e
+            in_block = 1
+            next
+        }
+        in_block {
+            if ($0 == e) in_block = 0
+            next
+        }
+        { print }
+    ' "${ZSHRC}" > "${TMP_ZSHRC}"
+    mv "${TMP_ZSHRC}" "${ZSHRC}"
+    ok "~/.zshrc の alias を更新"
+else
+    # 末尾に改行が無ければ補ってから追記
+    if [[ -s "${ZSHRC}" ]] && [[ "$(tail -c 1 "${ZSHRC}" | xxd -p)" != "0a" ]]; then
+        printf "\n" >> "${ZSHRC}"
+    fi
+    {
+        printf "\n%s\n" "${MARK_BEGIN}"
+        printf 'alias paku="%s"\n' "${PAKU_BIN}"
+        printf "%s\n" "${MARK_END}"
+    } >> "${ZSHRC}"
+    ok "~/.zshrc に alias を追加"
+fi
+
+# ==================
 # 完了案内
 # ==================
 
@@ -189,6 +251,10 @@ cat <<'EOF'
 ⚠️  daemon が起動し、バックグラウンドで初回モデルダウンロード (約 5GB)
     が始まっています。回線にもよりますが 5〜15 分程度かかります。
     完了は `paku status` の SLM 行で確認できます (ロード完了で `✓ loaded`)。
+
+ℹ️  `paku` コマンドを使うには、新しいターミナルを開くか以下を実行してください:
+
+    source ~/.zshrc
 
 次の手順:
 
